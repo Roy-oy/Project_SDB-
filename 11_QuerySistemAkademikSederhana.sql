@@ -1,4 +1,5 @@
-DROP TABLE IF EXISTS Nilai, Matakuliah, Mahasiswa, Admin, Dosen, JadwalKuliah CASCADE;
+DROP TABLE IF EXISTS JadwalKuliah CASCADE;
+
 
 -- Tabel Dosen
 CREATE TABLE Dosen (
@@ -166,6 +167,7 @@ SET nilai_akhir =
         ELSE ROUND((RANDOM() * (50 - 30) + 30)::numeric, 0)                           -- Nilai rendah, antara 30-50
     END;
 
+-- menampilkan mahasiswa dengan ipk 
 SELECT 
     M.id_mahasiswa,
     M.nama,
@@ -219,6 +221,8 @@ ORDER BY
     IPK DESC
 LIMIT 1;
 
+
+-- stored procedur untuk mengadd nilai 
 CREATE OR REPLACE PROCEDURE add_nilai(
     p_mahasiswa_id INTEGER,
     p_mata_kuliah_id INTEGER,
@@ -298,47 +302,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- stored procedure untuk menambahkan nilai mahasiswa 
---Stored procedure ini secara otomatis menghitung grade
--- berdasarkan nilai akhir yang diinput.
-CREATE OR REPLACE PROCEDURE add_nilai(
-    p_id_mahasiswa INT,
-    p_id_matakuliah INT,
-    p_id_dosen INT,
-    p_nilai_akhir FLOAT
-)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    grade CHAR(2);
-BEGIN
-    -- Validasi jika data sudah ada
-    IF EXISTS (
-        SELECT 1 FROM Nilai
-        WHERE id_mahasiswa = p_id_mahasiswa 
-          AND id_matakuliah = p_id_matakuliah
-    ) THEN
-        RAISE EXCEPTION 'Nilai untuk mahasiswa dan matakuliah ini sudah ada.';
-    END IF;
 
-    -- Hitung grade
-    IF p_nilai_akhir >= 85 THEN
-        grade := 'A';
-    ELSIF p_nilai_akhir >= 70 THEN
-        grade := 'B';
-    ELSIF p_nilai_akhir >= 55 THEN
-        grade := 'C';
-    ELSE
-        grade := 'D';
-    END IF;
-
-    -- Tambahkan data
-    INSERT INTO Nilai (id_mahasiswa, id_matakuliah, id_dosen, nilai_akhir, grade, sks)
-    VALUES (p_id_mahasiswa, p_id_matakuliah, p_id_dosen, p_nilai_akhir, grade, 
-            (SELECT sks FROM Matakuliah WHERE id_matakuliah = p_id_matakuliah));
-    RAISE NOTICE 'Nilai berhasil ditambahkan dengan grade: %', grade;
-END;
-$$;
+-- melakukan transaksi dengan rollback 
 
 BEGIN;
 -- Perintah transaksi 
@@ -371,9 +336,3 @@ SET ROLE role_admin;
 
 -- Login sebagai Mahasiswa
 SET ROLE role_mahasiswa;
-
--- Backup File
-pg_dump -U postgres -d proyek_sbd_kel11 -f 11_BackupSistemAkademikSederhana.sql
-
--- Restore File
-psql -U postgres -d proyek_sbd_kel11 -f 11_BackupSistemAkademikSederhana.sql
